@@ -17,7 +17,7 @@ This simulation builds a content-based music recommender that scores songs again
 
 ## How The System Works
 
-Real-world recommenders like Spotify and YouTube Music typically combine two strategies: **collaborative filtering**, which surfaces songs that users with similar taste have enjoyed, and **content-based filtering**, which matches songs based on their intrinsic audio and metadata attributes. This simulation focuses entirely on content-based filtering — it never looks at what other users listened to. Instead, it compares each song's measurable features directly against a user's stated preferences and computes a weighted similarity score. The priority is transparency and interpretability: every recommendation comes with a plain-language reason so it is clear exactly why a song was suggested, which is something real production systems rarely surface.
+Real-world recommenders like Spotify and YouTube Music typically combine two strategies: **collaborative filtering**, which surfaces songs that users with similar taste have enjoyed, and **content-based filtering**, which matches songs based on their intrinsic audio and metadata attributes. This simulation focuses entirely on content-based filtering — it never looks at what other users listened to. Instead, it compares each song's measurable features directly against a user's stated preferences and computes a point-based similarity score. The priority is transparency and interpretability: every recommendation comes with a plain-language reason so it is clear exactly why a song was suggested, which is something real production systems rarely surface.
 
 ---
 
@@ -53,26 +53,77 @@ Each `UserProfile` stores the user's taste preferences that the scorer compares 
 
 ---
 
-### How a Score Is Computed
+### Algorithm Recipe
 
-Each song receives a total score between 0.0 and 1.0 using weighted feature matching:
+Data flows through three sequential phases:
 
 ```
-total_score = (genre_match  × 0.35)
-            + (mood_match   × 0.30)
-            + (energy_score × 0.20)
-            + (valence_score × 0.10)
-            + (acousticness_score × 0.05)
+Input (User Prefs + songs.csv)
+  → Process (score every song in the catalog)
+    → Output (sort and return top K with explanations)
 ```
 
-- Categorical features (`genre`, `mood`) score **1.0** on an exact match, **0.0** otherwise.
-- Numerical features (`energy`, `valence`, `acousticness`) use a proximity formula: `1.0 - |song_value - user_target|`, which rewards closeness rather than absolute magnitude.
+**Phase 1 — Load**
+Read `data/songs.csv` into a list of song dictionaries. Every song enters the scoring phase — no pre-filtering.
+
+**Phase 2 — Score** *(runs once per song, 18 times total)*
+
+Each song is judged by three rules and assigned a point total:
+
+| Rule | Points | Logic |
+|---|---|---|
+| Genre match | **+2.0** | Exact string match against `favorite_genre`. Heaviest weight because genre defines the entire sonic space — wrong genre is a near-total mismatch. |
+| Mood match | **+1.0** | Exact string match against `favorite_mood`. Strong signal but weighted lower than genre because mood shifts more with context. |
+| Energy similarity | **+0.0 to +1.0** | `1.0 − \|song.energy − target_energy\|` — rewards closeness, not magnitude. A song at 0.40 scores 0.98 for a user targeting 0.38; a song at 0.91 scores only 0.47. |
+
+**Maximum possible score: 4.0**
+
+**Phase 3 — Rank**
+All 18 scored songs are sorted by score descending. The top `k` results are returned as `(song, score, explanation)` tuples, where the explanation lists exactly which rules fired and how many points each contributed.
+
+**Flowchart**
+
+```mermaid
+flowchart TD
+    A([User Preferences\ngenre · mood · target_energy]) --> C
+    B([songs.csv · 18 songs]) --> C
+    C[Load songs into list] --> D
+    D{For each song in catalog}
+    D --> E[Rule 1 · Genre match?\n+2.0 pts]
+    D --> F[Rule 2 · Mood match?\n+1.0 pts]
+    D --> G[Rule 3 · Energy similarity\n1.0 − gap = 0–1 pts]
+    E --> H[Sum all points\nmax score = 4.0]
+    F --> H
+    G --> H
+    H --> I[Attach explanation of what matched]
+    I --> J{More songs remaining?}
+    J -- Yes --> D
+    J -- No  --> K[All 18 songs scored]
+    K --> L[Sort by score descending]
+    L --> M[Slice top K results]
+    M --> N([Output · song · score · explanation])
+```
 
 ---
 
-### How Songs Are Ranked
+### Known Biases and Limitations
 
-After every song in the catalog is scored, the recommender sorts the full list by score in descending order and returns the top `k` results. Each result is returned as a `(song, score, explanation)` tuple so the caller can display both the recommendation and the reasoning behind it.
+**Genre over-prioritization.** Genre carries +2.0 of a possible 4.0 points — 50% of the maximum score. A song that perfectly matches the user's mood and energy but belongs to a different genre will rarely surface above a genre-matched song with a weaker mood and energy fit. This means a great blues track could be invisible to a user whose profile says `"jazz"`, even though the listening experience would be nearly identical.
+
+**Binary categorical penalty.** Genre and mood are scored as exact matches only — there is no partial credit. A `"rock"` user receives zero genre points for a `"metal"` song, despite the two being acoustically close neighbors. This creates an artificial hard boundary between adjacent styles.
+
+**Energy as the only numerical feature.** Valence, tempo, danceability, and acousticness are stored on every song but are not used in the scoring formula. Two songs with the same genre, mood, and energy but opposite emotional brightness (one euphoric, one dark) will receive identical scores.
+
+**Small catalog amplifies all of the above.** With only 18 songs, a user whose preferred genre appears in fewer than three songs will see a steep quality cliff between the top result and the remaining recommendations.
+
+---
+
+## Sample Output
+The following shows the top 5 recommendations for the `pop/happy` profile
+(genre=pop, mood=happy, target_energy=0.80):
+
+![Terminal output](docs/output_screenshot.png)
+
 
 ---
 
