@@ -11,23 +11,68 @@ Your goal is to:
 - Evaluate what your system gets right and wrong
 - Reflect on how this mirrors real world AI recommenders
 
-Replace this paragraph with your own summary of what your version does.
+This simulation builds a content-based music recommender that scores songs against a user's taste profile using weighted feature matching. It loads a small catalog from `data/songs.csv`, computes a similarity score for each song, and returns the top-ranked matches with a plain-language explanation of why each song was recommended.
 
 ---
 
 ## How The System Works
 
-Explain your design in plain language.
+Real-world recommenders like Spotify and YouTube Music typically combine two strategies: **collaborative filtering**, which surfaces songs that users with similar taste have enjoyed, and **content-based filtering**, which matches songs based on their intrinsic audio and metadata attributes. This simulation focuses entirely on content-based filtering — it never looks at what other users listened to. Instead, it compares each song's measurable features directly against a user's stated preferences and computes a weighted similarity score. The priority is transparency and interpretability: every recommendation comes with a plain-language reason so it is clear exactly why a song was suggested, which is something real production systems rarely surface.
 
-Some prompts to answer:
+---
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+### Song Features
 
-You can include a simple diagram or bullet list if helpful.
+Each `Song` object stores the following attributes drawn from `data/songs.csv`:
+
+| Feature | Type | Description |
+|---|---|---|
+| `id` | int | Unique identifier |
+| `title` | str | Song title |
+| `artist` | str | Artist name |
+| `genre` | str | Style category — e.g. `pop`, `lofi`, `rock`, `ambient`, `jazz`, `synthwave`, `indie pop` |
+| `mood` | str | Emotional quality — e.g. `happy`, `chill`, `intense`, `relaxed`, `focused`, `moody` |
+| `energy` | float (0–1) | Activation level from very calm to very intense |
+| `tempo_bpm` | float | Beats per minute — physical pace of the track |
+| `valence` | float (0–1) | Musical positivity — low is dark/somber, high is bright/upbeat |
+| `danceability` | float (0–1) | How strongly the track drives rhythmic movement |
+| `acousticness` | float (0–1) | Degree of organic/acoustic vs. electronic/produced texture |
+
+---
+
+### UserProfile Features
+
+Each `UserProfile` stores the user's taste preferences that the scorer compares against:
+
+| Field | Type | Description |
+|---|---|---|
+| `favorite_genre` | str | The genre the user most wants to hear — matched exactly against `Song.genre` |
+| `favorite_mood` | str | The emotional feel the user is after — matched exactly against `Song.mood` |
+| `target_energy` | float (0–1) | The user's ideal activation level — scored by proximity to `Song.energy` |
+| `likes_acoustic` | bool | Whether the user prefers acoustic texture — influences `Song.acousticness` weight |
+
+---
+
+### How a Score Is Computed
+
+Each song receives a total score between 0.0 and 1.0 using weighted feature matching:
+
+```
+total_score = (genre_match  × 0.35)
+            + (mood_match   × 0.30)
+            + (energy_score × 0.20)
+            + (valence_score × 0.10)
+            + (acousticness_score × 0.05)
+```
+
+- Categorical features (`genre`, `mood`) score **1.0** on an exact match, **0.0** otherwise.
+- Numerical features (`energy`, `valence`, `acousticness`) use a proximity formula: `1.0 - |song_value - user_target|`, which rewards closeness rather than absolute magnitude.
+
+---
+
+### How Songs Are Ranked
+
+After every song in the catalog is scored, the recommender sorts the full list by score in descending order and returns the top `k` results. Each result is returned as a `(song, score, explanation)` tuple so the caller can display both the recommendation and the reasoning behind it.
 
 ---
 
