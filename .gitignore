@@ -17,5 +17,8 @@ venv/
 # Environment variables — never commit real keys
 .env
 
+# Raw Kaggle dataset — not owned, do not publish
+data/dataset.csv
+
 # Logs
 logs/
