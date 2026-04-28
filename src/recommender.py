@@ -1,5 +1,8 @@
+import logging
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Scoring Strategy — Strategy Pattern
@@ -77,13 +80,34 @@ class Recommender:
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
         """Return the top k Song objects ranked by score against the given UserProfile."""
-        # TODO: Implement recommendation logic
-        return self.songs[:k]
+        user_prefs = {
+            "genre": user.favorite_genre,
+            "mood": user.favorite_mood,
+            "target_energy": user.target_energy,
+        }
+        scored = []
+        for song in self.songs:
+            song_dict = {"genre": song.genre, "mood": song.mood, "energy": song.energy}
+            score, _ = score_song(user_prefs, song_dict)
+            scored.append((song, score))
+        scored.sort(key=lambda x: x[1], reverse=True)
+        results = [s for s, _ in scored[:k]]
+        logger.debug("Recommender returned %d songs for genre=%s mood=%s", len(results), user.favorite_genre, user.favorite_mood)
+        return results
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
         """Return a plain-language string describing why a Song matches a UserProfile."""
-        # TODO: Implement explanation logic
-        return "Explanation placeholder"
+        reasons = []
+        if song.genre == user.favorite_genre:
+            reasons.append(f"matches your preferred genre ({song.genre})")
+        if song.mood == user.favorite_mood:
+            reasons.append(f"matches your preferred mood ({song.mood})")
+        energy_diff = abs(song.energy - user.target_energy)
+        if energy_diff <= 0.15:
+            reasons.append(f"energy level ({song.energy:.2f}) is close to your target ({user.target_energy:.2f})")
+        if not reasons:
+            reasons.append("best available match given your preferences")
+        return f'"{song.title}" by {song.artist}: ' + "; ".join(reasons) + "."
 
 def score_song(
     user_prefs: Dict,
