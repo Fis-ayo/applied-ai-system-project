@@ -1,272 +1,179 @@
-# 🎧 Model Card: Music Recommender Simulation
+# Model Card: AI Music Recommender
 
 ## 1. Model Name
 
-**VibeMatch 1.0**
+**VibeMatch 2.0**
 
-A content-based music recommender that matches songs to a listener's stated genre, mood,
-and energy preferences using a simple point-based scoring system.
+A natural language music recommendation system powered by Gemini 2.5 Flash and Retrieval-Augmented Generation (RAG). Users describe what they want in plain English — an activity, a mood, a vibe — and the system finds matching songs from a catalog of 3,420 real tracks across 114 genres, then explains the results in conversational language.
 
 ---
 
 ## 2. Intended Use
 
 **What it does:**
-VibeMatch suggests songs from a small catalog based on three things you tell it:
-what genre you like, what mood you're in, and how high-energy you want the music to be.
-It returns the top 5 matches along with a plain-language explanation of why each song was picked.
+VibeMatch 2.0 takes a natural language query, interprets it into structured music preferences using Gemini, retrieves the best matching songs from a large catalog using a rule-based scorer, and returns the top results with a plain-language explanation of why each song fits.
 
 **Who it is for:**
-This system is for classroom exploration only. It is a learning tool built to demonstrate
-how real recommenders work, not a product meant for actual listeners.
-
-**What it assumes:**
-It assumes the user knows their preferred genre and mood and can express them as exact labels
-(e.g., "lofi" not "chill indie study beats"). It also assumes all songs in the catalog are
-correctly and consistently tagged.
+Music listeners who want recommendations without filling out structured forms. Also a demonstration of how deterministic retrieval and AI language models can be combined cleanly in a production-style RAG pipeline.
 
 **What it should NOT be used for:**
-- Making real music recommendations for real users
-- Any situation where fairness across all music genres matters (it favors lofi and chill)
-- Replacing a system that learns from actual listening behavior over time
-- Any catalog larger than a few hundred songs without significant redesign
+- Making high-stakes decisions about user taste or identity
+- Profiling users emotionally based on their queries
+- Any context where genre or cultural representation must be audited for fairness at scale
 
 ---
 
-## 3. How the Model Works
+## 3. How the System Works
 
-Imagine you hand a librarian three sticky notes: your favorite genre, your current mood, and a
-number from 0 to 10 representing how energetic you want the music to feel. The librarian walks
-through every shelf in the library and gives each album a score based on how well it matches
-your notes. Albums that match all three notes score the highest. Then the librarian hands you
-the top five picks in order.
+The system has two AI calls and one deterministic retrieval step per request:
 
-That is exactly what this system does, using three rules:
+**Step 1 — Context retrieval (RAG, data source 1):**
+Before Gemini sees the user's query, the knowledge base (`data/music_knowledge.json`) is searched for matching entries using keyword overlap. If a match is found — e.g., the query mentions "gym" or "studying" — the relevant domain context (recommended genres, expected moods, energy range) is injected into Gemini's prompt.
 
-**Rule 1 — Genre:** If a song's genre matches yours exactly, it earns 1 point. If not, it earns
-nothing. There is no in-between — "rock" and "metal" are treated as completely different.
+**Step 2 — Query interpretation (Gemini 2.5 Flash):**
+Gemini reads the user's query plus any injected context and returns a structured JSON object:
+`{ genre, mood, target_energy, reasoning, confidence }`
 
-**Rule 2 — Mood:** If a song's mood label matches yours exactly, it earns 1 point. Same
-all-or-nothing rule. "Chill" and "relaxed" score the same as "chill" and "metal" — zero points.
+**Step 3 — Song retrieval (RAG, data source 2):**
+The rule-based scorer runs against all 3,420 songs in `data/songs.csv`. Each song is scored on three rules:
 
-**Rule 3 — Energy:** Every song gets a score between 0 and 2 based on how close its energy is
-to your target. A perfect match earns 2.0 points. A complete mismatch earns 0. Songs that are
-almost right earn something in between.
+| Rule | Points (balanced mode) | Logic |
+|---|---|---|
+| Genre match | +1.0 | Exact string match |
+| Mood match | +1.0 | Exact string match |
+| Energy proximity | 0–2.0 | `2.0 × (1 − |song.energy − target|)` |
 
-The three scores are added together. The maximum any song can earn is 4.0 points.
-The top 5 scorers are returned as recommendations.
+Maximum score: **4.0**. Songs are sorted by score and the top 5–10 are returned.
 
-**One change made during experiments:**
-The original system gave genre 2.0 points and energy only 0–1.0 points. After testing, genre
-was reduced to 1.0 and energy was doubled to 0–2.0. This made the results feel more musically
-accurate — especially for rock listeners, where a high-energy metal song now outranks a
-low-energy pop song even without a genre match.
+**Step 4 — Explanation (Gemini 2.5 Flash):**
+Gemini reads the top candidates and writes a 2–3 sentence response explaining why they fit the request.
 
 ---
 
 ## 4. Data
 
-The catalog contains **18 songs** stored in `data/songs.csv`.
+**Song catalog:** 3,420 songs sampled from the [Kaggle Spotify Tracks Dataset](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset). 30 songs per genre across 114 genres.
 
-**Where it came from:** The original 10 songs were provided as a starter dataset. Eight more
-were added manually to improve genre and mood diversity.
+**Mood labels:** Derived algorithmically from two Spotify audio features using hard thresholds:
 
-**What genres are included:**
-pop, lofi, rock, ambient, jazz, synthwave, indie pop, hip-hop, classical, r&b, metal, folk,
-electronic, blues, country — 15 genres across 18 songs.
+| Condition | Assigned Mood |
+|---|---|
+| valence > 0.7 AND energy > 0.7 | euphoric |
+| valence > 0.6 AND energy > 0.5 | happy |
+| valence > 0.6 AND energy ≤ 0.5 | romantic |
+| valence ≤ 0.3 AND energy > 0.7 | angry |
+| valence ≤ 0.4 AND energy > 0.6 | intense |
+| valence ≤ 0.4 AND energy ≤ 0.4 | melancholic |
+| energy ≤ 0.35 | chill |
+| energy > 0.6 | energetic |
+| else | focused |
 
-**What moods are included:**
-happy, chill, intense, relaxed, focused, moody, energetic, melancholic, romantic, angry,
-nostalgic, euphoric, soulful, uplifting — 14 mood labels across 18 songs.
+**Knowledge base:** 10 hand-authored entries in `data/music_knowledge.json` mapping common activities and feelings (study, gym, sleep, party, sad, romantic, road trip, morning, angry, atmospheric) to their expected genres, moods, and energy ranges. This is the second data source in the RAG pipeline.
 
-**What each song tracks:**
-Genre, mood, energy (0–1), tempo in BPM, valence (brightness), danceability, and acousticness.
-Only genre, mood, and energy are currently used in scoring. The other features are stored but idle.
-
-**Known gaps in the data:**
-- Lofi is the only genre with more than 2 songs (it has 3), giving lofi listeners an unfair advantage
-- Most genres and moods appear only once, meaning most users will get at most one strong genre match
-- The energy values cluster at the low end (under 0.42) and high end (above 0.75), leaving a gap in the middle where few songs live
-- The catalog reflects a fairly narrow slice of global music — no Latin, African, or South Asian genres are represented
+**Known gaps:**
+- Mood labels are approximations — the boundary between "focused" and "chill" is a hard numeric threshold, not human judgment
+- 30 songs per genre means niche genres have limited diversity
+- The catalog skews toward Western, English-language music; non-Western genres are underrepresented
 
 ---
 
 ## 5. Strengths
 
-**Lofi and chill listeners get genuinely useful results.** Because the dataset has three lofi songs
-and three chill-mood songs, users with those preferences see a real top-3 with strong matches,
-not just a score winner followed by random filler.
-
-**The results are fully explainable.** Every recommendation comes with a reason — "genre match,
-mood match, energy 0.35 near target 0.38." A user can read it and immediately understand why
-a song was picked. Most real recommenders offer no explanation at all.
-
-**Extreme preferences are handled correctly.** A user who wants maximum energy gets high-energy
-songs at the top. A user who wants minimal energy gets quiet songs. The direction of the
-recommendations is always right, even if the specific songs vary.
-
-**The system is easy to audit and change.** Because the scoring logic is three simple rules in
-one function, adjusting a weight or adding a new feature takes minutes. This transparency is a
-genuine advantage for learning and experimentation.
+- **Natural language input** removes the friction of structured preference forms — users describe what they want the same way they would tell a friend
+- **Fully explainable results** — every recommendation includes a numeric score and reason string showing exactly which rules fired
+- **Measurable reliability** — the benchmark system runs 6 fixed test cases with mood alignment, energy alignment, genre validity, and score thresholds
+- **RAG enhancement is demonstrable** — running the comparison mode shows a quantified before/after improvement in mood alignment from adding the knowledge base context
 
 ---
 
 ## 6. Limitations and Bias
 
-The most significant bias in this system is **catalog imbalance across user types**: lofi and
-chill listeners receive systematically better service than every other listener because the
-dataset contains three lofi songs and three chill-mood songs, while every other genre and most
-other moods appear exactly once. A lofi/chill user can earn genre and mood points on three
-different songs and get a genuinely strong top-3 result, whereas a blues or country listener
-matches genre on a single song and then relies entirely on energy proximity to fill positions
-2–5 — producing recommendations that may share an energy level but nothing else musically
-meaningful.
+**Mood labels are approximations, not ground truth.**
+The `mood` column was derived algorithmically from valence and energy. The boundaries are hard numeric thresholds. A song with valence 0.41 is labelled "focused"; a song with valence 0.39 is labelled "melancholic." There is nothing musically meaningful about that line — it means a user asking for sad music might receive songs that do not feel sad to a human listener.
 
-A second structural weakness is the **mid-energy dead zone**: energy values in the catalog
-cluster at two extremes (six songs below 0.42, eight songs above 0.75), with only three songs
-in the moderate 0.42–0.72 range. A user who wants background music at a comfortable medium
-energy has almost no good matches, and doubling the energy weight in the experimental version
-makes this gap more punishing rather than less.
+**Exact genre and mood matching penalises adjacent styles.**
+The scorer awards genre points only on an exact string match. A user who asks for "rock" receives zero genre points for a "metal" or "punk" result, even though those genres are acoustically close neighbours. "Chill" and "focused" are treated as completely different moods despite significant overlap.
 
-Finally, mood matching uses **binary exact comparison** with no partial credit for semantically
-adjacent labels — the system treats "relaxed" and "chill" as completely unrelated, so a relaxed
-user gets zero mood points on every chill-tagged song in the catalog even though a human listener
-would consider them nearly identical.
+**The catalog sample is uneven in practice.**
+While every genre gets exactly 30 songs, genres like pop and hip-hop have thousands of well-known tracks to sample from, while niche genres may return 30 mostly obscure results.
+
+**Gemini's interpretations reflect its training data.**
+Queries that reference non-Western listening contexts or culturally specific moods may be mapped to the closest Western equivalent rather than something genuinely appropriate.
 
 ---
 
-## 7. Evaluation
+## 7. Potential for Misuse
 
-Seven user profiles were tested in total — three standard listeners and four adversarial edge
-cases designed to stress-test the scoring logic.
+**Emotional profiling.** A user who consistently asks for sad, angry, or anxious music is implicitly revealing their emotional state over time. If query history were stored and linked to an identity, that data could be used for targeting or manipulation without consent. This system stores nothing beyond the session.
 
-**Standard profiles tested:**
-- *High-Energy Pop* (genre=pop, mood=happy, energy=0.80) — designed to have clear, obvious matches in the catalog
-- *Chill Lofi* (genre=lofi, mood=chill, energy=0.38) — the most well-served profile given the dataset's lofi bias
-- *Deep Intense Rock* (genre=rock, mood=intense, energy=0.90) — only one rock song exists, so results drop steeply after rank 1
+**Reinforcing echo chambers.** Recommenders that always return the closest match reward familiarity and suppress discovery. A user who asks for hip-hop will always get hip-hop.
 
-**Edge case profiles tested:**
-- *Conflicting Mood + Energy* (lofi/chill but energy=0.92) — testing whether high energy could override a calm mood match
-- *Genre Not in Catalog* (jazz-fusion) — testing what happens when genre matches nothing
-- *Opposing Genre + Mood* (metal/relaxed) — no song has both; forcing the scorer to choose one or the other
-- *Dead-Centre Energy* (energy=0.50) — neutralising the energy feature to see if genre and mood alone produce sensible results
-
-**What was expected:** The pop/happy profile should return upbeat pop songs. The lofi profile
-should return quiet, acoustic-textured tracks. The rock profile should return loud, fast,
-electric songs.
-
-**What was surprising:** The biggest unexpected result was that *Gym Hero* — a workout pop
-track tagged as "intense" — consistently ranked #2 for a *happy pop* listener. It kept appearing
-not because it felt right, but because its genre tag said "pop," and genre is worth enough points
-to float it above songs that matched the mood perfectly but belonged to a different genre. A real
-happy-pop listener would skip Gym Hero immediately, but the algorithm had no way to know that
-"pop + intense" is a worse mood fit than "indie pop + happy." This revealed that the genre label
-was doing too much work on its own.
-
-A second surprise came from the conflicting profile (lofi/chill but energy=0.92): even with a
-near-maximum energy target, lofi songs still ranked first. The genre and mood points were large
-enough to absorb the energy penalty — showing the system is more resistant to conflicting signals
-than expected, which is both a strength (stability) and a weakness (it ignores the contradiction
-entirely).
+**Mitigations built into this system:**
+- Session-only processing — no query history stored
+- No user accounts or cross-session profiling
+- Open scoring logic — every recommendation includes a numeric score and reason string, leaving no room for opaque manipulation
 
 ---
 
-## 8. Ideas for Improvement
+## 8. Evaluation
 
-**1. Add partial credit for musically adjacent genres.**
-Right now "rock" and "metal" score the same as "rock" and "classical" — both get zero genre
-points. A simple lookup table pairing related genres (rock↔metal, lofi↔ambient, jazz↔blues)
-and awarding half a point for a near-match would fix the Iron Tide / Gym Hero problem immediately.
+The reliability system in `src/evaluator.py` runs 6 benchmark queries through the full pipeline and measures four metrics per case:
 
-**2. Expand the catalog to at least 5 songs per genre.**
-The single biggest improvement would not be to the algorithm at all — it would be to the data.
-Most genres have one song. Until there are enough songs per genre to fill a top-5 list with
-genuine matches, the recommender will always produce low-quality results for most user types.
+| Metric | What it checks | Pass threshold |
+|---|---|---|
+| Mood alignment rate | % of top-5 results with an expected mood | ≥ 40% |
+| Energy alignment rate | % of top-5 results within expected energy band | — |
+| Genre validity | Gemini mapped to a genre that exists in the catalog | Must be true |
+| Top score | Highest-ranked song scored above minimum | ≥ 0.5 |
 
-**3. Include valence and tempo in the scoring formula.**
-Valence (how bright or dark a song feels) and tempo (how fast it moves) are already stored for
-every song but ignored during scoring. Adding them with small weights would let the system
-distinguish between an intense pop song (high valence) and an intense rock song (low valence),
-which is exactly the distinction that makes Gym Hero feel wrong for a happy-pop listener.
+A case passes if mood alignment ≥ 40%, genre is valid, and top score ≥ 0.5.
 
----
+**RAG comparison:** The `run_comparison` function runs each benchmark twice — with and without knowledge base context injection — and reports mood alignment delta per case. This demonstrates the measurable impact of the second data source.
 
-## 9. Personal Reflection
+**What worked well:**
+- Gemini consistently maps common activities (studying, gym, sleep) to sensible genre and mood combinations
+- The scorer reliably surfaces genre and mood matches when they exist in the catalog
+- The explainer produces natural, specific responses that mention real song details
 
-### Biggest Learning Moment
-
-The biggest learning moment was not about the code — it was about the data. I spent time
-designing a careful scoring formula with specific weights, then ran experiments changing those
-weights, and every time the fundamental problem stayed the same: most genres in the catalog had
-exactly one song. No weight adjustment could make a blues recommendation feel satisfying when
-the only blues song in the entire catalog was already ranked first. The algorithm was fine.
-The data was the ceiling.
-
-That realization changed how I think about AI systems in general. When a recommendation feels
-wrong, the instinct is to blame the algorithm — tweak a weight, change a rule. But often the
-real issue is that the data does not represent the world evenly. Fixing the data would have
-done more for this recommender than any amount of scoring logic redesign.
+**What did not work as expected:**
+- Niche or cross-genre requests sometimes map to a broad fallback genre, missing the nuance
+- Derived mood labels occasionally mis-classify edge cases — a quiet sad song can score as "chill" rather than "melancholic" because the energy threshold is a blunt instrument
 
 ---
 
-### How AI Tools Helped — and Where I Had to Verify
+## 9. What Surprised Me While Testing
 
-AI tools (Claude, Copilot) were genuinely useful at two specific points. First, when designing
-the algorithm recipe — having a structured conversation about which features should carry more
-weight, and why, produced clearer thinking than staring at a blank file would have. The prompt
-"should genre outweigh mood?" forced an answer with a reason attached, which became part of the
-actual design documentation.
+Two things stood out during reliability testing.
 
-Second, AI-suggested adversarial profiles were more creative than the ones I would have come up
-with alone. The "opposing genre + mood" profile (metal + relaxed) and the "dead-centre energy"
-profile revealed real weaknesses in the scoring logic that standard testing would have missed.
+**The catalog had a genre called "study."** When running the benchmark for a study query, Gemini sometimes mapped it directly to the genre `study` — a real Spotify micro-genre in the dataset — rather than `ambient` or `lofi`. The results were actually reasonable, but it revealed a gap between how users think about genres and how the catalog labels them. A user would never type "study" intending a Spotify micro-genre; they mean a feeling.
 
-Where I had to double-check: any time a formula was suggested, I verified the math manually
-before trusting it. The energy-doubling experiment was a good example — the AI confirmed the
-new max score was still 4.0, but I re-calculated it by hand (1.0 + 1.0 + 2.0) before updating
-the code. AI tools can produce plausible-sounding math that is subtly wrong, especially when
-the formula involves multiple interacting parts. Treating suggestions as a first draft to verify,
-not a final answer to accept, was the right approach.
+**Lower confidence did not always mean worse results.** I expected Gemini's confidence scores to track closely with result quality. That was not always true. Some of the most musically coherent recommendations came from queries where Gemini rated its own confidence at 0.6 or 0.7, because the ambiguity in the query forced a more creative interpretation. The clearest queries returned the most predictable, genre-locked results.
 
 ---
 
-### What Surprised Me About Simple Algorithms "Feeling" Like Recommendations
+## 10. Ideas for Future Improvement
 
-The most surprising thing was how much the *explanation* changed the feel of the result more
-than the result itself. When a song appeared at the top of the list with no context, it could
-feel arbitrary. When the same song appeared with "genre match (+1.0); mood match (+1.0); energy
-0.35 near target 0.38 (+1.94)," it suddenly felt *reasoned* — even though the underlying math
-was just three additions.
-
-Real recommenders never show you this. Spotify does not say "you got this song because 47,000
-people with your listening history also listened to it on Tuesday afternoons." VibeMatch does
-say that, in a simpler form, and it turns out transparency alone makes a system feel more
-trustworthy — even when the algorithm behind it is less sophisticated.
-
-The other surprise was how quickly results started feeling like *character*. The lofi profile
-always returned calm, textured songs. The rock profile always opened with Storm Runner. Running
-different profiles felt like watching different people browse different sections of a record
-store. That personality emerged entirely from three rules and a sort — no machine learning,
-no neural network, no training data. Just arithmetic on labeled spreadsheet rows.
+- **Partial credit for adjacent genres** — a lookup table pairing sonic neighbours (rock ↔ metal, lofi ↔ ambient) and awarding 0.5 points for a near-match would fix the hard genre boundary problem immediately
+- **Semantic search using embeddings** — replacing exact-match scoring with vector similarity would let the system find songs that feel right even without a genre label match
+- **Include valence and tempo in scoring** — both features are stored for every song but currently ignored; adding them with small weights would let the system distinguish between an intense pop song (high valence) and an intense rock song (low valence)
+- **Session-level preference learning** — tracking what a user accepts or skips within a session and adjusting weights accordingly, without storing data across sessions
 
 ---
 
-### What I Would Try Next
+## 11. Personal Reflection
 
-**Give related genres partial credit.** A rock listener getting zero genre points for a metal
-song feels like the most fixable bug in the current system. A small lookup table mapping sonic
-neighbors (rock ↔ metal, lofi ↔ ambient, jazz ↔ blues) and awarding 0.5 points for a near-match
-would immediately produce more musically intuitive results, especially for genres with only one
-song in the catalog.
+**Collaboration with AI during this project**
 
-**Add a second user preference: tempo.** Energy and tempo are related but not the same —
-a 60 BPM ambient track and a 60 BPM slow jazz ballad have similar energy levels but feel
-completely different. Tempo is already stored for every song. Adding it as a fourth scoring
-rule with a small weight would let the system separate "slow and heavy" from "slow and delicate,"
-which is a distinction real listeners care about.
+This project was built with significant AI assistance throughout, primarily using Claude (Anthropic) as a coding collaborator.
 
-**Try building the collaborative side.** This entire project was content-based — it never
-looked at what other people listened to. The next interesting step would be simulating a small
-set of users with known listening histories and seeing if "people who liked Library Rain also
-liked Spacewalk Thoughts" produces different (and better) results than pure feature matching.
-Even with 18 songs and 5 fake users, the contrast between the two approaches would be instructive.
+*A helpful suggestion:* Early in the project I was not sure whether to send the full song catalog to Gemini and let it rank everything, or to keep the rule-based scorer and only use Gemini for interpretation and explanation. Claude recommended the hybrid approach — use the deterministic scorer as a fast pre-filter to narrow 3,420 songs down to the top 10, then pass only those to Gemini for explanation. This was the right call. It kept API costs low, response times fast, and preserved full explainability in the scoring step.
+
+*A flawed suggestion:* When switching the project to the Google Gemini API, Claude recommended installing the `google-generativeai` Python package. Only when the import ran did a deprecation warning appear: *"All support for the `google.generativeai` package has ended. Please switch to the `google.genai` package."* The package Claude recommended had already been retired. The entire `ai_interface.py` had to be rewritten against the new SDK. It was a good reminder that AI suggestions about third-party libraries can go stale — always check official documentation before committing to a dependency.
+
+**What this project taught me about AI and problem-solving**
+
+I did not just add AI to a project — I thought carefully about where AI actually belongs in the system and where it does not. The rule-based scorer stayed because it is deterministic, auditable, and fast; Gemini was added only where human language needed to be understood and explained. That boundary — knowing when to use a model and when not to — is something I think a lot of engineers overlook.
+
+Building the evaluation system made the system's failure modes visible in a structured way that informal testing never would. Seeing a low mood alignment rate on the "sad" benchmark forced a closer look at the mood derivation thresholds — something that would have gone unnoticed without measurable benchmarks. The difference between a system that works and a system that seems like it works only shows up when you run the same query repeatedly and measure the results.
+
+The retrieval step is also where most of the quality lives. Gemini's explanations are only as good as the candidates the scorer surfaces. When the scorer returns five songs of the wrong mood, Gemini will write a confident explanation for all five — and it will sound plausible. The AI layer amplifies whatever the retrieval layer gives it, good or bad.
