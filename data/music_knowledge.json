@@ -1,0 +1,82 @@
+[
+  {
+    "id": "study",
+    "keywords": ["study", "studying", "focus", "concentrate", "homework", "reading", "work", "productive", "coding", "programming", "late night"],
+    "genres": ["study", "ambient", "classical", "lofi"],
+    "moods": ["focused", "chill"],
+    "energy_range": [0.1, 0.5],
+    "context": "For studying or focus sessions, music should be non-distracting and calm. Best genres: study, ambient, classical, lofi. Expected moods: focused or chill. Target energy: 0.2-0.4."
+  },
+  {
+    "id": "workout",
+    "keywords": ["gym", "workout", "exercise", "running", "training", "cardio", "lifting", "hype", "pump", "fitness", "weights", "hustle"],
+    "genres": ["hip-hop", "electronic", "metal", "edm", "hard-rock", "dance"],
+    "moods": ["energetic", "euphoric", "intense"],
+    "energy_range": [0.7, 1.0],
+    "context": "Workout music needs high energy and motivation. Best genres: hip-hop, electronic, metal, edm, hard-rock. Expected moods: energetic, euphoric, or intense. Target energy: 0.75-0.95."
+  },
+  {
+    "id": "sleep",
+    "keywords": ["sleep", "sleeping", "bedtime", "wind down", "relax", "relaxing", "meditation", "yoga", "peaceful", "quiet", "unwind"],
+    "genres": ["ambient", "sleep", "new-age", "classical", "acoustic"],
+    "moods": ["chill", "melancholic"],
+    "energy_range": [0.0, 0.3],
+    "context": "Sleep and relaxation music must be very low energy. Best genres: ambient, sleep, new-age, classical, acoustic. Expected moods: chill or melancholic. Target energy: 0.1-0.25."
+  },
+  {
+    "id": "party",
+    "keywords": ["party", "dance", "dancing", "club", "night out", "celebration", "fun", "pregame", "hype", "banger"],
+    "genres": ["dance", "pop", "electronic", "edm", "house", "disco"],
+    "moods": ["euphoric", "energetic", "happy"],
+    "energy_range": [0.7, 1.0],
+    "context": "Party and dance music should be high energy and euphoric. Best genres: dance, pop, electronic, edm, house, disco. Expected moods: euphoric, energetic, or happy. Target energy: 0.75-0.9."
+  },
+  {
+    "id": "sad",
+    "keywords": ["sad", "sadness", "crying", "heartbreak", "lonely", "melancholic", "melancholy", "rainy", "breakup", "emotional", "feeling down", "gloomy", "grief"],
+    "genres": ["sad", "indie", "singer-songwriter", "blues", "folk", "soul"],
+    "moods": ["melancholic", "romantic"],
+    "energy_range": [0.1, 0.45],
+    "context": "Sad or melancholic music should reflect emotional depth. Best genres: sad, indie, singer-songwriter, blues, folk, soul. Expected moods: melancholic or romantic. Target energy: 0.2-0.4."
+  },
+  {
+    "id": "romance",
+    "keywords": ["romantic", "romance", "date", "dinner", "love", "intimate", "couple", "evening", "candlelight", "valentines"],
+    "genres": ["r-n-b", "soul", "jazz", "romance", "latin"],
+    "moods": ["romantic", "happy"],
+    "energy_range": [0.35, 0.65],
+    "context": "Romantic music should be warm and intimate. Best genres: r-n-b, soul, jazz, romance, latin. Expected moods: romantic or happy. Target energy: 0.4-0.6."
+  },
+  {
+    "id": "road_trip",
+    "keywords": ["road trip", "driving", "drive", "car", "highway", "travel", "journey", "windows down", "cruising"],
+    "genres": ["rock", "country", "pop", "alternative", "indie"],
+    "moods": ["happy", "energetic", "euphoric"],
+    "energy_range": [0.5, 0.8],
+    "context": "Road trip music should be uplifting and varied. Best genres: rock, country, pop, alternative, indie. Expected moods: happy or energetic. Target energy: 0.55-0.75."
+  },
+  {
+    "id": "morning",
+    "keywords": ["morning", "wake up", "breakfast", "start the day", "energize", "sunrise", "good morning"],
+    "genres": ["pop", "indie-pop", "funk", "soul", "reggae"],
+    "moods": ["happy", "euphoric", "energetic"],
+    "energy_range": [0.5, 0.8],
+    "context": "Morning music should be upbeat without being overwhelming. Best genres: pop, indie-pop, funk, soul, reggae. Expected moods: happy or euphoric. Target energy: 0.55-0.75."
+  },
+  {
+    "id": "angry",
+    "keywords": ["angry", "anger", "frustrated", "aggressive", "rage", "intense", "let off steam", "stress", "loud", "furious", "mad"],
+    "genres": ["metal", "hard-rock", "punk", "grunge", "heavy-metal", "rock"],
+    "moods": ["angry", "intense"],
+    "energy_range": [0.75, 1.0],
+    "context": "Angry or intense music should be loud and aggressive. Best genres: metal, hard-rock, punk, grunge, heavy-metal, rock. Expected moods: angry or intense. Target energy: 0.8-1.0."
+  },
+  {
+    "id": "atmospheric",
+    "keywords": ["atmospheric", "moody", "dark", "introspective", "night drive", "cinematic", "deep", "brooding"],
+    "genres": ["ambient", "trip-hop", "electronic", "indie", "post-rock"],
+    "moods": ["melancholic", "chill", "focused"],
+    "energy_range": [0.2, 0.55],
+    "context": "Atmospheric or moody music should be layered and introspective. Best genres: ambient, trip-hop, electronic, indie. Expected moods: melancholic or chill. Target energy: 0.25-0.5."
+  }
+]
