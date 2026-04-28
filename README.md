@@ -2,9 +2,16 @@
 
 A natural language music recommendation system powered by Gemini 2.5 Flash and Retrieval-Augmented Generation (RAG). Type anything — a mood, an activity, a vibe — and the system finds matching songs and explains why they fit.
 
-**GitHub:** [Repo]
-**Demo:** <div style="position: relative; padding-bottom: 52.708333333333336%; height: 0;"><iframe src="https://www.loom.com/embed/653ecdb954204b1da4cdbe9cd5f6171c" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
-
+- **GitHub:** [Repo](https://github.com/Fis-ayo/applied-ai-system-project)
+- **Demo:** AI Music Recommender Workflow Demo 🎵 - Watch Video
+<div>
+    <a href="https://www.loom.com/share/653ecdb954204b1da4cdbe9cd5f6171c">
+      <p>AI Music Recommender Workflow Demo 🎵 - Watch Video</p>
+    </a>
+    <a href="https://www.loom.com/share/653ecdb954204b1da4cdbe9cd5f6171c">
+      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/653ecdb954204b1da4cdbe9cd5f6171c-b2cd6e1408f58452-full-play.gif#t=0.1">
+    </a>
+  </div>
 ---
 
 ## Original Project
