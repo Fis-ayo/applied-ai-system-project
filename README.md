@@ -56,7 +56,8 @@ User query → Gemini interprets → Rule-based scorer retrieves from catalog
 
 - Python 3.10 or higher
 - A Google AI Studio API key ([get one here](https://aistudio.google.com/apikey))
-- The Kaggle Spotify Tracks dataset (`dataset.csv`) placed in `data/`
+
+> The song catalog (`data/songs.csv`) is included in the repository — no dataset download required.
 
 ### 1. Clone the repository
 
@@ -87,15 +88,7 @@ cp .env.example .env
 # GOOGLE_API_KEY=your_key_here
 ```
 
-### 5. Build the song catalog
-
-```bash
-python3 data/preprocess.py
-```
-
-This reads `data/dataset.csv`, samples 30 songs from each of the 114 genres, derives mood labels from audio features, and writes `data/songs.csv` (3,420 songs).
-
-### 6. Run the app
+### 5. Run the app
 
 ```bash
 streamlit run app.py
@@ -231,9 +224,8 @@ For a future employer: the architecture pattern here — fast deterministic retr
 ```
 ├── app.py                  # Streamlit UI
 ├── data/
-│   ├── preprocess.py       # Builds songs.csv from dataset.csv
-│   ├── dataset.csv         # Raw Kaggle Spotify dataset (not committed)
-│   └── songs.csv           # Processed catalog (3,420 songs)
+│   ├── songs.csv           # Processed catalog (3,420 songs · 114 genres)
+│   └── music_knowledge.json # Knowledge base for RAG context injection
 ├── src/
 │   ├── ai_interface.py     # Gemini integration — interpret + explain
 │   ├── evaluator.py        # Reliability benchmark system
